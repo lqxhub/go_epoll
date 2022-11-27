@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"sync"
 	"syscall"
 )
 
@@ -15,6 +16,7 @@ func NewEpollM() *EpollM {
 }
 
 type EpollM struct {
+	look sync.RWMutex
 	conn map[int]*ServerConn
 
 	socketFd int //监听socket的fd
@@ -32,17 +34,24 @@ func (e *EpollM) Close() {
 
 //获取一个链接
 func (e *EpollM) GetConn(fd int) *ServerConn {
+	e.look.RLock()
+	defer e.look.RUnlock()
 	return e.conn[fd]
 }
 
 //添加一个链接
 func (e *EpollM) AddConn(conn *ServerConn) {
+	e.look.Lock()
 	e.conn[conn.fd] = conn
+	e.look.Unlock()
+
 }
 
 //删除一个链接
 func (e *EpollM) DelConn(fd int) {
+	e.look.Lock()
 	delete(e.conn, fd)
+	e.look.Unlock()
 }
 
 //开启监听
